@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>お手伝いスピード計算 | Otetsudai Speed Tool</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#1B2245;
+    --navy-deep:#11152E;
+    --navy-soft:#2A3266;
+    --moon:#F6CB5A;
+    --moon-soft:#FCE6AC;
+    --paper:#FBFBFD;
+    --paper-dim:#F1F2F8;
+    --line:#E1E4F0;
+    --ink:#20243B;
+    --ink-soft:#5B5F7E;
+    --pink:#F4D9EE;
+    --pink-strong:#E5A9D8;
+    --pink-text:#8A3D78;
+    --green:#D3EAD7;
+    --green-strong:#8FC79B;
+    --green-text:#2E6B40;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--paper-dim);color:var(--ink);font-family:"Noto Sans JP",sans-serif;}
+  ::selection{background:var(--moon-soft);}
+
+  /* ---------- Header ---------- */
+  .hero{
+    background:linear-gradient(160deg,var(--navy) 0%, var(--navy-deep) 100%);
+    color:#fff;
+    padding:28px 24px 22px;
+    position:relative;
+    overflow:hidden;
+  }
+  .hero::before{
+    content:"";
+    position:absolute;
+    right:-40px; top:-60px;
+    width:220px;height:220px;
+    border-radius:50%;
+    background:radial-gradient(circle at 30% 30%, var(--moon) 0%, rgba(246,203,90,0) 70%);
+    opacity:0.5;
+  }
+  .hero::after{
+    /* crescent moon, signature element */
+    content:"";
+    position:absolute;
+    right:38px; top:18px;
+    width:46px;height:46px;
+    border-radius:50%;
+    background:var(--moon);
+    box-shadow:-14px 4px 0 4px var(--navy-deep);
+  }
+  .hero h1{
+    font-family:"Zen Maru Gothic",sans-serif;
+    font-weight:900;
+    font-size:clamp(20px,3.4vw,28px);
+    margin:0 0 4px;
+    letter-spacing:.02em;
+  }
+  .hero p{
+    margin:0;
+    font-size:13px;
+    color:#C9CDE8;
+    line-height:1.6;
+    max-width:640px;
+  }
+
+  /* ---------- Control panel ---------- */
+  .panel{
+    background:var(--navy-soft);
+    color:#fff;
+    padding:16px 24px;
+    display:flex;
+    flex-wrap:wrap;
+    align-items:flex-end;
+    gap:18px 22px;
+    border-bottom:3px solid var(--moon);
+    position:sticky;
+    top:0;
+    z-index:30;
+  }
+  .field{display:flex;flex-direction:column;gap:5px;}
+  .field label{
+    font-size:11px;
+    font-weight:600;
+    color:#D7DAEE;
+    letter-spacing:.04em;
+  }
+  .field select, .field input[type=number]{
+    appearance:none;
+    background:#fff;
+    color:var(--ink);
+    border:none;
+    border-radius:8px;
+    padding:7px 12px;
+    font-size:14px;
+    font-weight:600;
+    font-family:"Noto Sans JP",sans-serif;
+    min-width:88px;
+    box-shadow:inset 0 0 0 2px transparent;
+  }
+  .field select:focus, .field input:focus{
+    outline:none;
+    box-shadow:inset 0 0 0 2px var(--moon);
+  }
+  .field .readout{
+    background:rgba(255,255,255,.08);
+    border-radius:8px;
+    padding:7px 12px;
+    font-size:14px;
+    font-weight:700;
+    color:var(--moon);
+    min-width:88px;
+  }
+  .field .hint{font-size:10.5px;color:#A9AEDA;font-weight:400;}
+
+  .legend{
+    display:flex;
+    gap:14px;
+    margin-left:auto;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+  .legend .chip{
+    display:flex;align-items:center;gap:6px;
+    font-size:11.5px;color:#D7DAEE;
+  }
+  .legend .swatch{width:14px;height:14px;border-radius:4px;display:inline-block;}
+  .legend .swatch.pink{background:var(--pink);box-shadow:inset 0 0 0 1px var(--pink-strong);}
+  .legend .swatch.green{background:var(--green);box-shadow:inset 0 0 0 1px var(--green-strong);}
+
+  /* ---------- Table area ---------- */
+  .table-shell{padding:0 0 40px;}
+  .table-wrap{
+    overflow:auto;
+    max-height:calc(100vh - 168px);
+    margin:0 0;
+    background:var(--paper);
+  }
+  table{
+    border-collapse:separate;
+    border-spacing:0;
+    font-size:13px;
+    font-variant-numeric:tabular-nums;
+  }
+  th,td{
+    border-right:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+    white-space:nowrap;
+  }
+
+  /* corner + header row */
+  thead th{
+    position:sticky;
+    top:0;
+    z-index:5;
+    background:var(--navy);
+    color:#fff;
+    vertical-align:top;
+    padding:8px 6px;
+  }
+  thead th.corner{
+    left:0;
+    z-index:6;
+    min-width:128px;
+    background:var(--navy-deep);
+    text-align:left;
+    font-family:"Zen Maru Gothic",sans-serif;
+    font-weight:700;
+    font-size:13px;
+    padding:10px 12px;
+  }
+  thead th.corner small{
+    display:block;
+    font-family:"Noto Sans JP",sans-serif;
+    font-weight:400;
+    font-size:10px;
+    color:#A9AEDA;
+    margin-top:6px;
+    line-height:1.5;
+  }
+
+  .cond{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:4px;
+    width:78px;
+  }
+  .cond .colid{
+    font-size:9px;
+    color:#7F86C0;
+    font-family:monospace;
+    align-self:flex-end;
+  }
+  .badges{display:flex;flex-wrap:wrap;gap:3px;justify-content:center;min-height:18px;}
+  .badge{
+    font-size:10px;
+    font-weight:700;
+    padding:1px 6px;
+    border-radius:999px;
+    line-height:1.5;
+  }
+  .badge.bo{background:#3B4486;color:#CFE0FF;}
+  .badge.s{background:#3F6E5C;color:#CFFCE6;}
+  .badge.m{background:#6E4A3F;color:#FFD9C2;}
+  .badge.down{background:#7A3550;color:#FFCBE0;}
+  .badge.none{background:transparent;color:#7F86C0;font-weight:400;}
+  .cond .total{font-size:11px;font-weight:700;color:var(--moon);}
+  .cond .corr{font-size:10px;color:#B9BEE2;}
+
+  /* first column (sticky left) */
+  tbody td:first-child{
+    position:sticky;
+    left:0;
+    z-index:4;
+    background:var(--paper-dim);
+    text-align:center;
+    font-weight:700;
+    color:var(--navy);
+    min-width:128px;
+    padding:6px 12px;
+  }
+  tbody tr:nth-child(even) td:first-child{background:#ECEEF8;}
+
+  .stat-cell{display:flex;align-items:center;justify-content:center;gap:8px;}
+  .stat-cell img{height:26px;width:26px;object-fit:contain;border-radius:6px;}
+  .stat-cell .ph{
+    height:22px;width:22px;border-radius:6px;
+    background:repeating-linear-gradient(45deg,#E1E4F0,#E1E4F0 4px,#F1F2F8 4px,#F1F2F8 8px);
+    flex:none;
+  }
+
+  tbody td{
+    text-align:right;
+    padding:6px 10px;
+    color:var(--ink);
+    background:#fff;
+  }
+  tbody tr:nth-child(even) td{background:#FAFAFE;}
+  tbody td.pink{background:var(--pink) !important;color:var(--pink-text);font-weight:700;}
+  tbody td.green{background:var(--green) !important;color:var(--green-text);font-weight:700;}
+
+  tbody tr:hover td{filter:brightness(0.97);}
+
+  footer{
+    padding:18px 24px 28px;
+    font-size:11px;
+    color:var(--ink-soft);
+    text-align:center;
+  }
+
+  @media (max-width:640px){
+    .panel{padding:14px 14px;gap:14px 16px;}
+    .legend{width:100%;margin-left:0;justify-content:flex-start;}
+    .hero{padding:22px 16px 18px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>お手伝いスピード計算ツール</h1>
+  <p>レベル・サブスキル構成・性格・EX補正の条件ごとに、お手伝い時間（秒）を一覧で比較できます。緑のマスは閾値②、ピンクのマスは閾値①を下回る条件です。</p>
+</div>
+
+<div class="panel">
+  <div class="field">
+    <label for="level">レベル</label>
+    <select id="level"></select>
+  </div>
+  <div class="field">
+    <label for="ex">EX補正</label>
+    <select id="ex"></select>
+  </div>
+  <div class="field">
+    <label for="th1">閾値① (秒)</label>
+    <input type="number" id="th1" step="1">
+  </div>
+  <div class="field">
+    <label>閾値② (閾値①×1.2)</label>
+    <div class="readout" id="th2readout">—</div>
+  </div>
+  <div class="field">
+    <label>げんき (固定値)</label>
+    <div class="readout" style="color:#fff;background:rgba(255,255,255,.06);">2.2222</div>
+  </div>
+
+  <div class="legend">
+    <span class="chip"><span class="swatch pink"></span>閾値①未満</span>
+    <span class="chip"><span class="swatch green"></span>閾値②未満</span>
+    <span class="chip">ボ=おてぼ &nbsp;S=おてS &nbsp;M=おてM &nbsp;↓=性格マイナス</span>
+  </div>
+</div>
+
+<div class="table-shell">
+  <div class="table-wrap">
+    <table id="grid">
+      <thead><tr id="headRow"></tr></thead>
+      <tbody id="bodyRows"></tbody>
+    </table>
+  </div>
+</div>
+
+<footer>
+  基礎ステータス列（A10:A25相当）には今後画像を追加予定です。データ・選択肢の更新は <code>DATA</code> 内の <code>baseStats.img</code> / <code>levelOptions</code> / <code>exOptions</code> を編集してください。
+</footer>
+
+<script>
+/* =========================================================
+   DATA
+   - levelOptions / exOptions: 今後アップデートで選択肢が増減する場合はここを編集
+   - baseStats[].img: 画像を追加する場合は画像URL（相対パスでもOK）をここに入れる
+   - conditions: 元エクセルのB列〜AW列（48条件）に対応。各列の構成と補正値はエクセルから抽出済みの固定値
+   ========================================================= */
+const DATA = {
+ "levelOptions": [50,60,65,70,75,100],
+ "exOptions": [0.9,1,1.15],
+ "genki": 2.2222,
+ "defaultThreshold1": 590,
+ "defaultLevel": 60,
+ "defaultEx": 1,
+ "baseStats": [
+  {"value":2100,"img":""},{"value":2200,"img":""},{"value":2300,"img":""},{"value":2400,"img":""},
+  {"value":2500,"img":""},{"value":2600,"img":""},{"value":2700,"img":""},{"value":2800,"img":""},
+  {"value":2900,"img":""},{"value":3000,"img":""},{"value":3100,"img":""},{"value":3200,"img":""},
+  {"value":3300,"img":""},{"value":3400,"img":""},{"value":3500,"img":""},{"value":3600,"img":""}
+ ],
+ "conditions": [
+  {"col":"B","otebo":0,"oteS":0,"oteM":0,"total":0,"natureDown":0,"correction":1},
+  {"col":"C","otebo":1,"oteS":0,"oteM":0,"total":0.05,"natureDown":0,"correction":0.95},
+  {"col":"D","otebo":0,"oteS":1,"oteM":0,"total":0.07,"natureDown":0,"correction":0.93},
+  {"col":"E","otebo":2,"oteS":0,"oteM":0,"total":0.1,"natureDown":0,"correction":0.9},
+  {"col":"F","otebo":0,"oteS":0,"oteM":0,"total":0,"natureDown":1,"correction":0.9},
+  {"col":"G","otebo":1,"oteS":1,"oteM":0,"total":0.12,"natureDown":0,"correction":0.88},
+  {"col":"H","otebo":0,"oteS":0,"oteM":1,"total":0.14,"natureDown":0,"correction":0.86},
+  {"col":"I","otebo":1,"oteS":0,"oteM":0,"total":0.05,"natureDown":1,"correction":0.855},
+  {"col":"J","otebo":3,"oteS":0,"oteM":0,"total":0.15,"natureDown":0,"correction":0.85},
+  {"col":"K","otebo":0,"oteS":1,"oteM":0,"total":0.07,"natureDown":1,"correction":0.837},
+  {"col":"L","otebo":2,"oteS":1,"oteM":0,"total":0.17,"natureDown":0,"correction":0.83},
+  {"col":"M","otebo":1,"oteS":0,"oteM":1,"total":0.19,"natureDown":0,"correction":0.81},
+  {"col":"N","otebo":2,"oteS":0,"oteM":0,"total":0.1,"natureDown":1,"correction":0.81},
+  {"col":"O","otebo":4,"oteS":0,"oteM":0,"total":0.2,"natureDown":0,"correction":0.8},
+  {"col":"P","otebo":1,"oteS":1,"oteM":0,"total":0.12,"natureDown":1,"correction":0.792},
+  {"col":"Q","otebo":0,"oteS":1,"oteM":1,"total":0.21,"natureDown":0,"correction":0.79},
+  {"col":"R","otebo":3,"oteS":1,"oteM":0,"total":0.22,"natureDown":0,"correction":0.78},
+  {"col":"S","otebo":0,"oteS":0,"oteM":1,"total":0.14,"natureDown":1,"correction":0.774},
+  {"col":"T","otebo":3,"oteS":0,"oteM":0,"total":0.15,"natureDown":1,"correction":0.765},
+  {"col":"U","otebo":2,"oteS":0,"oteM":1,"total":0.24,"natureDown":0,"correction":0.76},
+  {"col":"V","otebo":5,"oteS":0,"oteM":0,"total":0.25,"natureDown":0,"correction":0.75},
+  {"col":"W","otebo":2,"oteS":1,"oteM":0,"total":0.17,"natureDown":1,"correction":0.747},
+  {"col":"X","otebo":1,"oteS":1,"oteM":1,"total":0.26,"natureDown":0,"correction":0.74},
+  {"col":"Y","otebo":4,"oteS":1,"oteM":0,"total":0.27,"natureDown":0,"correction":0.73},
+  {"col":"Z","otebo":1,"oteS":0,"oteM":1,"total":0.19,"natureDown":1,"correction":0.729},
+  {"col":"AA","otebo":4,"oteS":0,"oteM":0,"total":0.2,"natureDown":1,"correction":0.72},
+  {"col":"AB","otebo":0,"oteS":1,"oteM":1,"total":0.21,"natureDown":1,"correction":0.711},
+  {"col":"AC","otebo":3,"oteS":0,"oteM":1,"total":0.29,"natureDown":0,"correction":0.71},
+  {"col":"AD","otebo":3,"oteS":1,"oteM":0,"total":0.22,"natureDown":1,"correction":0.702},
+  {"col":"AE","otebo":2,"oteS":1,"oteM":1,"total":0.31,"natureDown":0,"correction":0.69},
+  {"col":"AF","otebo":2,"oteS":0,"oteM":1,"total":0.24,"natureDown":1,"correction":0.684},
+  {"col":"AG","otebo":5,"oteS":1,"oteM":0,"total":0.32,"natureDown":0,"correction":0.68},
+  {"col":"AH","otebo":5,"oteS":0,"oteM":0,"total":0.25,"natureDown":1,"correction":0.675},
+  {"col":"AI","otebo":1,"oteS":1,"oteM":1,"total":0.26,"natureDown":1,"correction":0.666},
+  {"col":"AJ","otebo":4,"oteS":0,"oteM":1,"total":0.34,"natureDown":0,"correction":0.66},
+  {"col":"AK","otebo":4,"oteS":1,"oteM":0,"total":0.27,"natureDown":1,"correction":0.657},
+  {"col":"AL","otebo":3,"oteS":1,"oteM":1,"total":0.35,"natureDown":0,"correction":0.65},
+  {"col":"AM","otebo":5,"oteS":0,"oteM":1,"total":0.35,"natureDown":0,"correction":0.65},
+  {"col":"AN","otebo":4,"oteS":1,"oteM":1,"total":0.35,"natureDown":0,"correction":0.65},
+  {"col":"AO","otebo":5,"oteS":1,"oteM":1,"total":0.35,"natureDown":0,"correction":0.65},
+  {"col":"AP","otebo":3,"oteS":0,"oteM":1,"total":0.29,"natureDown":1,"correction":0.639},
+  {"col":"AQ","otebo":2,"oteS":1,"oteM":1,"total":0.31,"natureDown":1,"correction":0.621},
+  {"col":"AR","otebo":5,"oteS":1,"oteM":0,"total":0.32,"natureDown":1,"correction":0.612},
+  {"col":"AS","otebo":4,"oteS":0,"oteM":1,"total":0.34,"natureDown":1,"correction":0.594},
+  {"col":"AT","otebo":3,"oteS":1,"oteM":1,"total":0.35,"natureDown":1,"correction":0.585},
+  {"col":"AU","otebo":5,"oteS":0,"oteM":1,"total":0.35,"natureDown":1,"correction":0.585},
+  {"col":"AV","otebo":4,"oteS":1,"oteM":1,"total":0.35,"natureDown":1,"correction":0.585},
+  {"col":"AW","otebo":5,"oteS":1,"oteM":1,"total":0.35,"natureDown":1,"correction":0.585}
+ ]
+};
+
+/* ---------------- UI build ---------------- */
+const levelSel = document.getElementById('level');
+const exSel = document.getElementById('ex');
+const th1Input = document.getElementById('th1');
+const th2Readout = document.getElementById('th2readout');
+const headRow = document.getElementById('headRow');
+const bodyRows = document.getElementById('bodyRows');
+
+DATA.levelOptions.forEach(v=>{
+  const o = document.createElement('option');
+  o.value=v; o.textContent=v;
+  if(v===DATA.defaultLevel) o.selected=true;
+  levelSel.appendChild(o);
+});
+DATA.exOptions.forEach(v=>{
+  const o = document.createElement('option');
+  o.value=v; o.textContent=v;
+  if(v===DATA.defaultEx) o.selected=true;
+  exSel.appendChild(o);
+});
+th1Input.value = DATA.defaultThreshold1;
+
+/* corner header */
+const corner = document.createElement('th');
+corner.className='corner';
+corner.innerHTML = '基礎ステータス<small>レベル/EX補正/閾値を変更すると<br>下表が自動更新されます</small>';
+headRow.appendChild(corner);
+
+/* condition header cells */
+DATA.conditions.forEach(c=>{
+  const th = document.createElement('th');
+  const badges = [];
+  if(c.otebo>0) badges.push(`<span class="badge bo">ボ×${c.otebo}</span>`);
+  if(c.oteS) badges.push(`<span class="badge s">S</span>`);
+  if(c.oteM) badges.push(`<span class="badge m">M</span>`);
+  if(c.natureDown) badges.push(`<span class="badge down">↓</span>`);
+  const badgeHTML = badges.length ? badges.join('') : `<span class="badge none">条件なし</span>`;
+  th.innerHTML = `
+    <div class="cond">
+      <span class="colid">${c.col}</span>
+      <div class="badges">${badgeHTML}</div>
+      <div class="total">+${Math.round(c.total*100)}%</div>
+      <div class="corr">×${c.correction.toFixed(3)}</div>
+    </div>`;
+  headRow.appendChild(th);
+});
+
+/* body rows (cells filled in render()) */
+DATA.baseStats.forEach((stat, rowIdx)=>{
+  const tr = document.createElement('tr');
+  const tdStat = document.createElement('td');
+  tdStat.innerHTML = `<div class="stat-cell">${stat.img ? `<img src="${stat.img}" alt="">` : `<span class="ph"></span>`}<span>${stat.value}</span></div>`;
+  tr.appendChild(tdStat);
+  DATA.conditions.forEach((c, colIdx)=>{
+    const td = document.createElement('td');
+    td.dataset.row = rowIdx;
+    td.dataset.col = colIdx;
+    tr.appendChild(td);
+  });
+  bodyRows.appendChild(tr);
+});
+
+const cells = Array.from(bodyRows.querySelectorAll('td[data-row]'));
+
+function render(){
+  const level = parseFloat(levelSel.value);
+  const ex = parseFloat(exSel.value);
+  const th1 = parseFloat(th1Input.value) || 0;
+  const th2 = th1 * 1.2;
+  th2Readout.textContent = th2 ? th2.toFixed(1) : '—';
+
+  const levelFactor = 1 - 0.002*level;
+
+  cells.forEach(td=>{
+    const r = +td.dataset.row, c = +td.dataset.col;
+    const base = DATA.baseStats[r].value;
+    const corr = DATA.conditions[c].correction;
+    const val = base / DATA.genki * levelFactor * corr * ex;
+    td.textContent = val.toFixed(1);
+    td.classList.remove('pink','green');
+    if(th1>0 && val <= th1){
+      td.classList.add('pink');
+    } else if(th2>0 && val <= th2){
+      td.classList.add('green');
+    }
+  });
+}
+
+levelSel.addEventListener('change', render);
+exSel.addEventListener('change', render);
+th1Input.addEventListener('input', render);
+
+render();
+</script>
+</body>
+</html>
