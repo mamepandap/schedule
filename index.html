@@ -14,6 +14,7 @@
     --sat:#16243a;--sun:#321a20;--done:#5fae6b;
     --radius:8px;--rowH:46px;--dateW:50px;
     --prep:#e89248;--work:#4a8fd6;
+    --pillbg:#0d1117;--pillink:#f3f7fb;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;height:100%;background:var(--bg);}
@@ -68,8 +69,8 @@
     text-shadow:0 1px 2px rgba(255,255,255,.35);}
   /* 作業の時刻ピル（複数・横並び対応） */
   .wpill{position:absolute;transform:translate(-50%,-50%);text-align:center;font-size:8px;font-weight:700;
-    color:#f3f7fb;background:rgba(13,17,23,.82);border-radius:999px;padding:1px 5px;white-space:nowrap;}
-  .wpill.free{background:rgba(13,17,23,.55);font-style:normal;}
+    color:var(--pillink);background:var(--pillbg);border-radius:999px;padding:1px 5px;white-space:nowrap;}
+  .wpill.free{opacity:.7;font-style:normal;}
   .tedge{position:absolute;left:50%;transform:translate(-50%,-50%);text-align:center;font-size:8px;font-weight:700;
     color:#f3f7fb;background:rgba(13,17,23,.82);border-radius:999px;padding:1px 6px;white-space:nowrap;}
   .badge{position:absolute;bottom:3px;left:0;right:0;text-align:center;font-size:8px;font-weight:700;color:#0d1115;}
@@ -126,6 +127,12 @@
   .pillchip input{width:64px;background:none;border:none;color:var(--ink);font-size:13px;padding:3px;}
   .pillchip .x{background:none;border:none;color:var(--dim);font-size:14px;cursor:pointer;padding:0 4px;}
   .pillchip.addchip{cursor:pointer;color:var(--prep);padding:3px 10px;font-size:13px;font-weight:600;}
+  .pillchip-edit{padding-left:8px;}
+  .cdot{position:relative;width:22px;height:22px;border-radius:50%;border:1px solid var(--line);
+    display:inline-grid;place-items:center;cursor:pointer;overflow:hidden;flex:0 0 auto;}
+  .cdot input[type=color]{position:absolute;inset:-4px;width:130%;height:130%;border:none;padding:0;cursor:pointer;opacity:0;}
+  .cdot.ring{background:var(--bg);}
+  .cdot.ring span{font-size:12px;font-weight:800;}
   .hide{display:none !important;}
 </style>
 </head>
@@ -239,6 +246,11 @@
       <div><div class="lab">土曜</div><input id="cSat" type="color"></div>
       <div><div class="lab">日曜</div><input id="cSun" type="color"></div>
     </div>
+    <label>時刻ピルの色</label>
+    <div class="cfg-grid">
+      <div><div class="lab">背景</div><input id="cPillBg" type="color"></div>
+      <div><div class="lab">文字</div><input id="cPillInk" type="color"></div>
+    </div>
     <label>作業台（列）</label>
     <div id="laneCfgList"></div>
     <button class="addbtn" id="addLaneBtn">＋ 列を追加</button>
@@ -256,7 +268,7 @@
 <script>
 const KEY="kotei-board-v4";
 const DEF_CFG={prep:"#e89248",work:"#4a8fd6",bg:"#0d1117",ink:"#f3f7fb",sat:"#16243a",sun:"#321a20",
-  namePrep:"準備",nameWork:"作業",
+  namePrep:"準備",nameWork:"作業",pillbg:"#0d1117",pillink:"#f3f7fb",
   workPills:[["8:00","9:00","13:00","16:00"],["12:00","14:00"],["フリー"]]};
 const DAY_START_H=8, DAY_END_H=18; // ピルの縦位置計算に使う時刻範囲
 const DEF_LANES=["作業台 1","作業台 2"];
@@ -306,6 +318,7 @@ DAYS.forEach((d,i)=>dayIndex[ymd(d)]=i);
 function applyCfg(){const r=document.documentElement.style;
   r.setProperty("--prep",cfg.prep);r.setProperty("--work",cfg.work);r.setProperty("--bg",cfg.bg);
   r.setProperty("--ink",cfg.ink);r.setProperty("--sat",cfg.sat);r.setProperty("--sun",cfg.sun);
+  r.setProperty("--pillbg",cfg.pillbg||"#0d1117");r.setProperty("--pillink",cfg.pillink||"#f3f7fb");
   document.querySelectorAll(".ic-prep").forEach(e=>e.style.background=cfg.prep);
   document.querySelectorAll(".ic-work").forEach(e=>e.style.background=cfg.work);
   $("lgPrep").textContent=cfg.namePrep;$("lgWork").textContent=cfg.nameWork;
@@ -387,7 +400,8 @@ function render(){
         const set=pillSets[di];if(!set||!set.length)return;
         const r=dayIndex[ymd(wd)];if(r===undefined)return;
         const cellTop=(r-baseRow)*RH;
-        set.forEach((label,pi)=>{
+        set.forEach((raw,pi)=>{
+          const p2=normPill(raw);const label=p2.label;
           let vy;
           const m=String(label).match(/^(\d{1,2}):?(\d{2})?/);
           if(m&&/^\d/.test(label)){const mins=(+m[1])*60+(+(m[2]||0));
@@ -395,7 +409,10 @@ function render(){
           else{vy=cellTop+RH*0.5;}
           const n=set.length;const hx=((pi+0.5)/n)*100;
           const isFree=!(m&&/^\d/.test(label));
-          html+='<span class="wpill'+(isFree?" free":"")+'" style="top:'+vy+'px;left:'+hx+'%;">'+esc(label)+'</span>';
+          let st="top:"+vy+"px;left:"+hx+"%;";
+          if(p2.bg)st+="background:"+p2.bg+";";
+          if(p2.ink)st+="color:"+p2.ink+";";
+          html+='<span class="wpill'+(isFree?" free":"")+'" style="'+st+'">'+esc(label)+'</span>';
         });
       });
       html+=labelHtml(cfg.nameWork,t.name);
@@ -403,6 +420,9 @@ function render(){
     bar.innerHTML=html;bar.onclick=e=>{e.stopPropagation();openSheet(t.id);};col.appendChild(bar);});
 }
 function esc(s){return(s||"").replace(/[<>&]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;"}[c]));}
+// ピルは文字列 or {label,bg,ink}。常にオブジェクトに正規化
+function normPill(p){if(typeof p==="string")return{label:p,bg:"",ink:""};
+  return{label:p.label||"",bg:p.bg||"",ink:p.ink||""};}
 function labelHtml(kindName,memo,top){
   let inner='<span class="tn-kind">'+esc(kindName)+'</span>';
   if(memo&&memo.trim())inner+='<span class="tn-memo">'+esc(memo)+'</span>';
@@ -435,30 +455,38 @@ function openSheet(id,lane,startStr){editId=id;fillLaneSelect();
     else{$("tStartW").value=t.start;editDays=t.len||3;}
     // 個別ピル：あればそれ、なければデフォルトのコピー（=デフォルト継承中）
     taskPillsCustom=!!(t.pills&&t.pills.length);
-    taskPills=(t.pills&&t.pills.length?t.pills:(cfg.workPills||[])).map(d=>d.slice());
+    taskPills=(t.pills&&t.pills.length?t.pills:(cfg.workPills||[])).map(d=>d.map(normPill));
     $("delBtn").style.display="block";
   }else{$("sheetTitle").textContent="タスクを追加";editKind="prep";editHours=100;editDays=3;
     $("tLane").value=lane||0;$("tStart").value=startStr||ymd(new Date());$("tStartW").value=startStr||ymd(new Date());
     $("tTime").value="17:00";$("tName").value="";$("delBtn").style.display="none";
-    taskPillsCustom=false;taskPills=(cfg.workPills||[]).map(d=>d.slice());}
+    taskPillsCustom=false;taskPills=(cfg.workPills||[]).map(d=>d.map(normPill));}
   updateKind();updateSteppers();renderTaskPills();updateInfo();$("sheet").classList.add("show");}
 let taskPills=[], taskPillsCustom=false;
 function renderTaskPills(){
   $("pillModeNote").textContent=taskPillsCustom?"（このタスク専用）":"（全体のデフォルト）";
   const wrap=$("taskPillCfg");wrap.innerHTML="";
   taskPills.forEach((day,di)=>{const block=document.createElement("div");block.className="pillday";
-    let chips='';day.forEach((v,pi)=>{chips+='<span class="pillchip"><input type="text" value="'+esc(v)+'" data-tpv="'+di+'|'+pi+'" placeholder="8:00"><button class="x" data-tpx="'+di+'|'+pi+'">×</button></span>';});
+    let chips='';day.forEach((p,pi)=>{
+      const bg=p.bg||(cfg.pillbg||"#0d1117");const ink=p.ink||(cfg.pillink||"#f3f7fb");
+      chips+='<span class="pillchip pillchip-edit">'
+        +'<input type="text" value="'+esc(p.label)+'" data-tpv="'+di+'|'+pi+'" placeholder="8:00">'
+        +'<label class="cdot" style="background:'+bg+'"><input type="color" value="'+bg+'" data-tpbg="'+di+'|'+pi+'"></label>'
+        +'<label class="cdot ring" style="color:'+ink+'"><span>A</span><input type="color" value="'+ink+'" data-tpink="'+di+'|'+pi+'"></label>'
+        +'<button class="x" data-tpx="'+di+'|'+pi+'">×</button></span>';});
     chips+='<span class="pillchip addchip" data-tpa="'+di+'">＋</span>';
     block.innerHTML='<div class="pillday-head"><span class="dl">'+(di+1)+'日目</span><button class="x" data-tdx="'+di+'">×</button></div><div class="pillchips">'+chips+'</div>';
     wrap.appendChild(block);});
   const mark=()=>{taskPillsCustom=true;$("pillModeNote").textContent="（このタスク専用）";};
-  wrap.querySelectorAll("[data-tpv]").forEach(inp=>inp.oninput=e=>{const[di,pi]=e.target.dataset.tpv.split("|").map(Number);taskPills[di][pi]=e.target.value;mark();});
+  wrap.querySelectorAll("[data-tpv]").forEach(inp=>inp.oninput=e=>{const[di,pi]=e.target.dataset.tpv.split("|").map(Number);taskPills[di][pi].label=e.target.value;mark();});
+  wrap.querySelectorAll("[data-tpbg]").forEach(inp=>inp.oninput=e=>{const[di,pi]=e.target.dataset.tpbg.split("|").map(Number);taskPills[di][pi].bg=e.target.value;mark();e.target.parentElement.style.background=e.target.value;});
+  wrap.querySelectorAll("[data-tpink]").forEach(inp=>inp.oninput=e=>{const[di,pi]=e.target.dataset.tpink.split("|").map(Number);taskPills[di][pi].ink=e.target.value;mark();e.target.parentElement.style.color=e.target.value;});
   wrap.querySelectorAll("[data-tpx]").forEach(b=>b.onclick=()=>{const[di,pi]=b.dataset.tpx.split("|").map(Number);taskPills[di].splice(pi,1);mark();renderTaskPills();});
-  wrap.querySelectorAll("[data-tpa]").forEach(b=>b.onclick=()=>{taskPills[+b.dataset.tpa].push("");mark();renderTaskPills();});
+  wrap.querySelectorAll("[data-tpa]").forEach(b=>b.onclick=()=>{taskPills[+b.dataset.tpa].push({label:"",bg:"",ink:""});mark();renderTaskPills();});
   wrap.querySelectorAll("[data-tdx]").forEach(b=>b.onclick=()=>{taskPills.splice(+b.dataset.tdx,1);mark();renderTaskPills();});
 }
-$("taskAddDayBtn").onclick=()=>{taskPills.push([""]);taskPillsCustom=true;renderTaskPills();};
-$("taskResetPillBtn").onclick=()=>{taskPillsCustom=false;taskPills=(cfg.workPills||[]).map(d=>d.slice());renderTaskPills();};
+$("taskAddDayBtn").onclick=()=>{taskPills.push([{label:"",bg:"",ink:""}]);taskPillsCustom=true;renderTaskPills();};
+$("taskResetPillBtn").onclick=()=>{taskPillsCustom=false;taskPills=(cfg.workPills||[]).map(d=>d.map(normPill));renderTaskPills();};
 function updateKind(){document.querySelectorAll("#kindRow button").forEach(b=>b.classList.toggle("on",b.dataset.k===editKind));
   $("prepFields").classList.toggle("hide",editKind!=="prep");$("workFields").classList.toggle("hide",editKind!=="work");}
 document.querySelectorAll("#kindRow button").forEach(b=>b.onclick=()=>{editKind=b.dataset.k;updateKind();updateInfo();});
@@ -483,7 +511,8 @@ $("saveBtn").onclick=()=>{const name=$("tName").value.trim();
     if(editId)Object.assign(tasks.find(x=>x.id===editId),obj);else tasks.push(Object.assign({id:Date.now()+""},obj));
   }else{const start=$("tStartW").value;if(!start)return;
     const obj={lane:+$("tLane").value,kind:"work",start,len:editDays,name};
-    if(taskPillsCustom){obj.pills=taskPills.map(d=>d.map(v=>v.trim()).filter(Boolean));}
+    if(taskPillsCustom){obj.pills=taskPills.map(d=>d.filter(p=>(p.label||"").trim())
+      .map(p=>{const o={label:p.label.trim()};if(p.bg)o.bg=p.bg;if(p.ink)o.ink=p.ink;return o;}));}
     if(editId){const t=tasks.find(x=>x.id===editId);for(const k in t)if(k!=="id")delete t[k];Object.assign(t,obj);}
     else tasks.push(Object.assign({id:Date.now()+""},obj));}
   save();$("sheet").classList.remove("show");render();};
@@ -517,10 +546,12 @@ $("addDayBtn").onclick=()=>{cfgPills.push([""]);renderPillCfg();};
 
 $("cfgBtn").onclick=()=>{$("cPrep").value=cfg.prep;$("cWork").value=cfg.work;$("cBg").value=cfg.bg;$("cInk").value=cfg.ink;
   $("cSat").value=cfg.sat;$("cSun").value=cfg.sun;$("nPrep").value=cfg.namePrep;$("nWork").value=cfg.nameWork;
-  cfgLanes=lanes.slice();cfgPills=(cfg.workPills||[]).map(d=>d.slice());renderLaneCfg();renderPillCfg();
+  $("cPillBg").value=cfg.pillbg||"#0d1117";$("cPillInk").value=cfg.pillink||"#f3f7fb";
+  cfgLanes=lanes.slice();cfgPills=(cfg.workPills||[]).map(d=>d.map(p=>normPill(p).label));renderLaneCfg();renderPillCfg();
   $("cfgSheet").classList.add("show");};
 $("cfgSave").onclick=()=>{cfg.prep=$("cPrep").value;cfg.work=$("cWork").value;cfg.bg=$("cBg").value;cfg.ink=$("cInk").value;
   cfg.sat=$("cSat").value;cfg.sun=$("cSun").value;cfg.namePrep=$("nPrep").value.trim()||"準備";cfg.nameWork=$("nWork").value.trim()||"作業";
+  cfg.pillbg=$("cPillBg").value;cfg.pillink=$("cPillInk").value;
   // 列：空名は補完、最低1列
   let nl=cfgLanes.map((n,i)=>n.trim()||("作業台 "+(i+1)));if(!nl.length)nl=["作業台 1"];
   // タスクのlaneが範囲外になったら最終列に寄せる
@@ -531,7 +562,8 @@ $("cfgSave").onclick=()=>{cfg.prep=$("cPrep").value;cfg.work=$("cWork").value;cf
   save();$("cfgSheet").classList.remove("show");render();fillLaneSelect();};
 $("cfgReset").onclick=()=>{const wp=cfg.workPills;cfg=Object.assign({},DEF_CFG,{workPills:wp});
   $("cPrep").value=cfg.prep;$("cWork").value=cfg.work;$("cBg").value=cfg.bg;$("cInk").value=cfg.ink;
-  $("cSat").value=cfg.sat;$("cSun").value=cfg.sun;$("nPrep").value=cfg.namePrep;$("nWork").value=cfg.nameWork;};
+  $("cSat").value=cfg.sat;$("cSun").value=cfg.sun;$("nPrep").value=cfg.namePrep;$("nWork").value=cfg.nameWork;
+  $("cPillBg").value=cfg.pillbg;$("cPillInk").value=cfg.pillink;};
 
 $("fab").onclick=()=>openSheet(null,0,ymd(new Date()));
 document.querySelectorAll("[data-close]").forEach(b=>b.onclick=e=>e.target.closest(".sheet").classList.remove("show"));
