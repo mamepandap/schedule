@@ -31,7 +31,7 @@
   .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px;}
   .legend .dash{border:1.5px dashed var(--work);background:transparent;}
   .lane-head{display:grid;margin-top:6px;}
-  .lane-head .lane-name{text-align:center;font-size:13px;font-weight:700;color:var(--dim);
+  .lane-head .lane-name{text-align:center;font-size:13px;font-weight:700;color:var(--ink);
     padding:8px 0;border-left:1px solid var(--line);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;}
   .lane-head .lane-name .ed{font-size:11px;opacity:.6;}
   .scroll{flex:1;overflow-y:auto;overflow-x:hidden;position:relative;-webkit-overflow-scrolling:touch;background:var(--bg);}
@@ -533,21 +533,29 @@ function renderLaneCfg(){const wrap=$("laneCfgList");wrap.innerHTML="";
   wrap.querySelectorAll("[data-lx]").forEach(b=>b.onclick=()=>{cfgLanes.splice(+b.dataset.lx,1);renderLaneCfg();});}
 function renderPillCfg(){const wrap=$("pillCfg");wrap.innerHTML="";
   cfgPills.forEach((day,di)=>{const block=document.createElement("div");block.className="pillday";
-    let chips='';day.forEach((v,pi)=>{chips+='<span class="pillchip"><input type="text" value="'+esc(v)+'" data-pv="'+di+'|'+pi+'" placeholder="8:00"><button class="x" data-px="'+di+'|'+pi+'">×</button></span>';});
+    let chips='';day.forEach((p,pi)=>{
+      const bg=p.bg||(cfg.pillbg||"#0d1117");const ink=p.ink||(cfg.pillink||"#f3f7fb");
+      chips+='<span class="pillchip pillchip-edit">'
+        +'<input type="text" value="'+esc(p.label||"")+'" data-pv="'+di+'|'+pi+'" placeholder="8:00">'
+        +'<label class="cdot" style="background:'+bg+'"><input type="color" value="'+bg+'" data-pbg="'+di+'|'+pi+'"></label>'
+        +'<label class="cdot ring" style="color:'+ink+'"><span>A</span><input type="color" value="'+ink+'" data-pink="'+di+'|'+pi+'"></label>'
+        +'<button class="x" data-px="'+di+'|'+pi+'">×</button></span>';});
     chips+='<span class="pillchip addchip" data-pa="'+di+'">＋</span>';
     block.innerHTML='<div class="pillday-head"><span class="dl">'+(di+1)+'日目</span><button class="x" data-dx="'+di+'">×</button></div><div class="pillchips">'+chips+'</div>';
     wrap.appendChild(block);});
-  wrap.querySelectorAll("[data-pv]").forEach(inp=>inp.oninput=e=>{const[di,pi]=e.target.dataset.pv.split("|").map(Number);cfgPills[di][pi]=e.target.value;});
+  wrap.querySelectorAll("[data-pv]").forEach(inp=>inp.oninput=e=>{const[di,pi]=e.target.dataset.pv.split("|").map(Number);cfgPills[di][pi].label=e.target.value;});
+  wrap.querySelectorAll("[data-pbg]").forEach(inp=>inp.oninput=e=>{const[di,pi]=e.target.dataset.pbg.split("|").map(Number);cfgPills[di][pi].bg=e.target.value;e.target.parentElement.style.background=e.target.value;});
+  wrap.querySelectorAll("[data-pink]").forEach(inp=>inp.oninput=e=>{const[di,pi]=e.target.dataset.pink.split("|").map(Number);cfgPills[di][pi].ink=e.target.value;e.target.parentElement.style.color=e.target.value;});
   wrap.querySelectorAll("[data-px]").forEach(b=>b.onclick=()=>{const[di,pi]=b.dataset.px.split("|").map(Number);cfgPills[di].splice(pi,1);renderPillCfg();});
-  wrap.querySelectorAll("[data-pa]").forEach(b=>b.onclick=()=>{cfgPills[+b.dataset.pa].push("");renderPillCfg();});
+  wrap.querySelectorAll("[data-pa]").forEach(b=>b.onclick=()=>{cfgPills[+b.dataset.pa].push({label:"",bg:"",ink:""});renderPillCfg();});
   wrap.querySelectorAll("[data-dx]").forEach(b=>b.onclick=()=>{cfgPills.splice(+b.dataset.dx,1);renderPillCfg();});}
 $("addLaneBtn").onclick=()=>{cfgLanes.push(cfg.nameWork+" "+(cfgLanes.length+1));renderLaneCfg();};
-$("addDayBtn").onclick=()=>{cfgPills.push([""]);renderPillCfg();};
+$("addDayBtn").onclick=()=>{cfgPills.push([{label:"",bg:"",ink:""}]);renderPillCfg();};
 
 $("cfgBtn").onclick=()=>{$("cPrep").value=cfg.prep;$("cWork").value=cfg.work;$("cBg").value=cfg.bg;$("cInk").value=cfg.ink;
   $("cSat").value=cfg.sat;$("cSun").value=cfg.sun;$("nPrep").value=cfg.namePrep;$("nWork").value=cfg.nameWork;
   $("cPillBg").value=cfg.pillbg||"#0d1117";$("cPillInk").value=cfg.pillink||"#f3f7fb";
-  cfgLanes=lanes.slice();cfgPills=(cfg.workPills||[]).map(d=>d.map(p=>normPill(p).label));renderLaneCfg();renderPillCfg();
+  cfgLanes=lanes.slice();cfgPills=(cfg.workPills||[]).map(d=>d.map(p=>normPill(p)));renderLaneCfg();renderPillCfg();
   $("cfgSheet").classList.add("show");};
 $("cfgSave").onclick=()=>{cfg.prep=$("cPrep").value;cfg.work=$("cWork").value;cfg.bg=$("cBg").value;cfg.ink=$("cInk").value;
   cfg.sat=$("cSat").value;cfg.sun=$("cSun").value;cfg.namePrep=$("nPrep").value.trim()||"準備";cfg.nameWork=$("nWork").value.trim()||"作業";
@@ -558,7 +566,7 @@ $("cfgSave").onclick=()=>{cfg.prep=$("cPrep").value;cfg.work=$("cWork").value;cf
   tasks.forEach(t=>{if(t.lane>=nl.length)t.lane=nl.length-1;});
   lanes=nl;
   // ピル：空項目を除去、空の日は空配列で保持
-  cfg.workPills=cfgPills.map(d=>d.map(v=>v.trim()).filter(Boolean));
+  cfg.workPills=cfgPills.map(d=>d.filter(p=>(p.label||"").trim()).map(p=>{const o={label:p.label.trim()};if(p.bg)o.bg=p.bg;if(p.ink)o.ink=p.ink;return o;}));
   save();$("cfgSheet").classList.remove("show");render();fillLaneSelect();};
 $("cfgReset").onclick=()=>{const wp=cfg.workPills;cfg=Object.assign({},DEF_CFG,{workPills:wp});
   $("cPrep").value=cfg.prep;$("cWork").value=cfg.work;$("cBg").value=cfg.bg;$("cInk").value=cfg.ink;
