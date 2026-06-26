@@ -48,6 +48,9 @@
   .date-cell.today .dnum{color:var(--prep);}
   .month-tag{position:absolute;top:2px;left:3px;font-size:9px;color:var(--prep);font-weight:700;}
   .off-dot{position:absolute;bottom:3px;width:4px;height:4px;border-radius:50%;background:var(--offink);}
+  .date-memo{position:absolute;bottom:3px;left:50%;transform:translateX(-50%);
+    font-size:8px;font-weight:700;color:#f3f7fb;background:rgba(42,100,180,.82);
+    border-radius:999px;padding:1px 6px;white-space:nowrap;max-width:88%;overflow:hidden;text-overflow:ellipsis;z-index:2;pointer-events:none;}
   .lane-col{position:relative;border-left:1px solid var(--line);}
   .lane-cell{position:absolute;left:0;right:0;height:var(--rowH);border-bottom:1px solid var(--line);background:var(--weekday);}
   .lane-cell.sat{background:var(--sat);}
@@ -160,8 +163,13 @@
   <div class="sheet-body">
     <h2 id="dayTitle">この日</h2>
     <div class="seg-row" id="dayRow"><button data-v="work">平日（稼働）</button><button data-v="off">休日（停止）</button></div>
+    <label>メモ</label>
+    <input id="dayMemo" type="text" placeholder="この日のメモ（任意）">
   </div>
-  <div class="sheet-btns"><button class="btn-ghost" data-close>閉じる</button></div>
+  <div class="sheet-btns">
+    <button class="btn-ghost" data-close>閉じる</button>
+    <button class="btn-fill" id="daySave">保存</button>
+  </div>
 </div></div>
 
 <div class="sheet" id="confirmSheet" style="z-index:60;"><div class="sheet-inner">
@@ -278,16 +286,16 @@ const DAY_START_H=8, DAY_END_H=18; // ピルの縦位置計算に使う時刻範
 const DEF_LANES=["作業台 1","作業台 2"];
 const RH=46;
 let store=load();
-let tasks=store.tasks, overrides=store.overrides, cfg=store.cfg, lanes=store.lanes;
+let tasks=store.tasks, overrides=store.overrides, cfg=store.cfg, lanes=store.lanes, memos=store.memos;
 let editId=null, editKind="prep", editHours=100, editDays=3, dayKey=null, laneEditIdx=null;
 
 function load(){
   try{const r=localStorage.getItem(KEY);if(r){const d=JSON.parse(r);
     return{tasks:d.tasks||[],overrides:d.overrides||{},cfg:Object.assign({},DEF_CFG,d.cfg||{}),
-      lanes:(d.lanes&&d.lanes.length>=1)?d.lanes.slice():DEF_LANES.slice()};}}catch(e){}
-  return{tasks:[],overrides:{},cfg:Object.assign({},DEF_CFG),lanes:DEF_LANES.slice()};
+      lanes:(d.lanes&&d.lanes.length>=1)?d.lanes.slice():DEF_LANES.slice(),memos:d.memos||{}};}}catch(e){}
+  return{tasks:[],overrides:{},cfg:Object.assign({},DEF_CFG),lanes:DEF_LANES.slice(),memos:{}};
 }
-function save(){localStorage.setItem(KEY,JSON.stringify({tasks,overrides,cfg,lanes}));}
+function save(){localStorage.setItem(KEY,JSON.stringify({tasks,overrides,cfg,lanes,memos}));}
 
 const $=id=>document.getElementById(id);
 const ymd=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
@@ -354,7 +362,8 @@ function render(){
     const showM=(d.getDate()===1)||i===0;
     cell.innerHTML=(showM?'<span class="month-tag">'+(d.getMonth()+1)+'月</span>':"")
       +'<span class="dnum">'+d.getDate()+'</span><span class="dwk">'+WK[w]+'</span>'
-      +(overrides[ymd(d)]?'<span class="off-dot"></span>':"");
+      +(overrides[ymd(d)]?'<span class="off-dot"></span>':"")
+      +(memos[ymd(d)]?'<span class="date-memo">'+esc(memos[ymd(d)])+'</span>':"");
     cell.onclick=()=>openDay(d);grid.appendChild(cell);});
   // レーン見出し生成
   const lh=$("laneHead");lh.innerHTML='<div></div>';
@@ -436,10 +445,17 @@ function labelHtml(kindName,memo,top){
 
 function openDay(d){dayKey=ymd(d);$("dayTitle").textContent=(d.getMonth()+1)+"/"+d.getDate()+"（"+WK[d.getDay()]+"）の扱い";
   const cur=isOff(d)?"off":"work";document.querySelectorAll("#dayRow button").forEach(b=>b.classList.toggle("on",b.dataset.v===cur));
+  $("dayMemo").value=memos[ymd(d)]||"";
   $("daySheet").classList.add("show");}
-document.querySelectorAll("#dayRow button").forEach(b=>b.onclick=()=>{const v=b.dataset.v;const d=parse(dayKey);
-  const def=(d.getDay()===0||d.getDay()===6)?"off":"work";if(v===def)delete overrides[dayKey];else overrides[dayKey]=v;
-  save();$("daySheet").classList.remove("show");render();});
+document.querySelectorAll("#dayRow button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("#dayRow button").forEach(x=>x.classList.toggle("on",x===b));});
+$("daySave").onclick=()=>{const d=parse(dayKey);
+  const def=(d.getDay()===0||d.getDay()===6)?"off":"work";
+  const v=document.querySelector("#dayRow button.on")?.dataset.v||def;
+  if(v===def)delete overrides[dayKey];else overrides[dayKey]=v;
+  const m=$("dayMemo").value.trim();
+  if(m)memos[dayKey]=m;else delete memos[dayKey];
+  save();$("daySheet").classList.remove("show");render();};
 
 // 列名変更
 function openLane(i){laneEditIdx=i;$("laneInput").value=lanes[i];
