@@ -12,7 +12,7 @@
     --bg:#0d1117;--panel:#161c24;--line:#2a323c;--ink:#f3f7fb;--dim:#8a98a6;
     --offink:#566373;--today:#243140;--weekday:#11161d;
     --sat:#16243a;--sun:#321a20;--done:#5fae6b;
-    --radius:8px;--rowH:46px;--dateW:50px;
+    --radius:8px;--rowH:46px;--dateW:50px;--lhbg:#1a2d3f;
     --prep:#e89248;--work:#4a8fd6;
     --pillbg:#0d1117;--pillink:#f3f7fb;
   }
@@ -30,7 +30,7 @@
   .legend{display:flex;gap:14px;padding:8px 0 2px;font-size:11px;color:var(--dim);align-items:center;flex-wrap:wrap;}
   .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px;}
   .legend .dash{border:1.5px dashed var(--work);background:transparent;}
-  .lane-head{display:grid;margin-top:6px;}
+  .lane-head{display:grid;margin-top:6px;background:var(--lhbg);}
   .lane-head .lane-name{text-align:center;font-size:13px;font-weight:700;color:var(--ink);
     padding:8px 0;border-left:1px solid var(--line);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;}
   .lane-head .lane-name .ed{font-size:11px;opacity:.6;}
@@ -246,6 +246,10 @@
       <div><div class="lab">土曜</div><input id="cSat" type="color"></div>
       <div><div class="lab">日曜</div><input id="cSun" type="color"></div>
     </div>
+    <label>列見出しの背景色</label>
+    <div class="cfg-grid">
+      <div><div class="lab">作業台行</div><input id="cLhbg" type="color"></div>
+    </div>
     <label>時刻ピルの色</label>
     <div class="cfg-grid">
       <div><div class="lab">背景</div><input id="cPillBg" type="color"></div>
@@ -268,7 +272,7 @@
 <script>
 const KEY="kotei-board-v4";
 const DEF_CFG={prep:"#e89248",work:"#4a8fd6",bg:"#0d1117",ink:"#f3f7fb",sat:"#16243a",sun:"#321a20",
-  namePrep:"準備",nameWork:"作業",pillbg:"#0d1117",pillink:"#f3f7fb",
+  namePrep:"準備",nameWork:"作業",pillbg:"#0d1117",pillink:"#f3f7fb",lhbg:"#1a2d3f",
   workPills:[["8:00","9:00","13:00","16:00"],["12:00","14:00"],["フリー"]]};
 const DAY_START_H=8, DAY_END_H=18; // ピルの縦位置計算に使う時刻範囲
 const DEF_LANES=["作業台 1","作業台 2"];
@@ -319,6 +323,7 @@ function applyCfg(){const r=document.documentElement.style;
   r.setProperty("--prep",cfg.prep);r.setProperty("--work",cfg.work);r.setProperty("--bg",cfg.bg);
   r.setProperty("--ink",cfg.ink);r.setProperty("--sat",cfg.sat);r.setProperty("--sun",cfg.sun);
   r.setProperty("--pillbg",cfg.pillbg||"#0d1117");r.setProperty("--pillink",cfg.pillink||"#f3f7fb");
+  r.setProperty("--lhbg",cfg.lhbg||"#1a2d3f");
   document.querySelectorAll(".ic-prep").forEach(e=>e.style.background=cfg.prep);
   document.querySelectorAll(".ic-work").forEach(e=>e.style.background=cfg.work);
   $("lgPrep").textContent=cfg.namePrep;$("lgWork").textContent=cfg.nameWork;
@@ -555,11 +560,12 @@ $("addDayBtn").onclick=()=>{cfgPills.push([{label:"",bg:"",ink:""}]);renderPillC
 $("cfgBtn").onclick=()=>{$("cPrep").value=cfg.prep;$("cWork").value=cfg.work;$("cBg").value=cfg.bg;$("cInk").value=cfg.ink;
   $("cSat").value=cfg.sat;$("cSun").value=cfg.sun;$("nPrep").value=cfg.namePrep;$("nWork").value=cfg.nameWork;
   $("cPillBg").value=cfg.pillbg||"#0d1117";$("cPillInk").value=cfg.pillink||"#f3f7fb";
+  $("cLhbg").value=cfg.lhbg||"#1a2d3f";
   cfgLanes=lanes.slice();cfgPills=(cfg.workPills||[]).map(d=>d.map(p=>normPill(p)));renderLaneCfg();renderPillCfg();
   $("cfgSheet").classList.add("show");};
 $("cfgSave").onclick=()=>{cfg.prep=$("cPrep").value;cfg.work=$("cWork").value;cfg.bg=$("cBg").value;cfg.ink=$("cInk").value;
   cfg.sat=$("cSat").value;cfg.sun=$("cSun").value;cfg.namePrep=$("nPrep").value.trim()||"準備";cfg.nameWork=$("nWork").value.trim()||"作業";
-  cfg.pillbg=$("cPillBg").value;cfg.pillink=$("cPillInk").value;
+  cfg.pillbg=$("cPillBg").value;cfg.pillink=$("cPillInk").value;cfg.lhbg=$("cLhbg").value;
   // 列：空名は補完、最低1列
   let nl=cfgLanes.map((n,i)=>n.trim()||("作業台 "+(i+1)));if(!nl.length)nl=["作業台 1"];
   // タスクのlaneが範囲外になったら最終列に寄せる
@@ -571,7 +577,7 @@ $("cfgSave").onclick=()=>{cfg.prep=$("cPrep").value;cfg.work=$("cWork").value;cf
 $("cfgReset").onclick=()=>{const wp=cfg.workPills;cfg=Object.assign({},DEF_CFG,{workPills:wp});
   $("cPrep").value=cfg.prep;$("cWork").value=cfg.work;$("cBg").value=cfg.bg;$("cInk").value=cfg.ink;
   $("cSat").value=cfg.sat;$("cSun").value=cfg.sun;$("nPrep").value=cfg.namePrep;$("nWork").value=cfg.nameWork;
-  $("cPillBg").value=cfg.pillbg;$("cPillInk").value=cfg.pillink;};
+  $("cPillBg").value=cfg.pillbg;$("cPillInk").value=cfg.pillink;$("cLhbg").value=cfg.lhbg;};
 
 $("fab").onclick=()=>openSheet(null,0,ymd(new Date()));
 document.querySelectorAll("[data-close]").forEach(b=>b.onclick=e=>e.target.closest(".sheet").classList.remove("show"));
